@@ -6,6 +6,7 @@ import re
 import html.parser
 import argparse
 import romkan
+import os
 
 
 
@@ -229,9 +230,14 @@ def handle_term(args, word=None, url=None, filename=None):
         term = parser.term
     
     if len(term) > 0:
+        # If no output file is given, default to 'out.csv'
         if args.output is None:
             args.output = 'out.csv'
-            
+        # If an output DIRECTORY is given, write to 'out.csv' in that directory
+        elif os.path.isdir(args.output):
+                args.output = os.path.join(args.output, 'out.csv')
+        
+        # Blanks are for the fields we don't care about
         with open(args.output, 'a') as f:
             f.write('\t'.join([
                 term, '', reading, meaning, '', position, '', '',
