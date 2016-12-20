@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import requests
 import sys
@@ -240,8 +240,17 @@ def handle_term(args, word=None, url=None, filename=None):
         # Blanks are for the fields we don't care about
         with open(args.output, 'a') as f:
             f.write('\t'.join([
-                term, '', reading, meaning, '', position, '', '',
-                sentences, '', englishes,
+                term,       # Vocabulary-Kanji
+                '',         # Vocabulary-Furigana
+                reading,    # Vocabular-Kana
+                meaning,    # Vocabulary-English
+                '',         # Vocabulary-Audio
+                position,   # Vocabulary-Pos
+                '',         # Caution
+                sentences,  # Expression
+                '',         # Reading
+                '',         # Sentence-Kana
+                englishes,  # Sentence-English
             ]))
             f.write('\n')
 
