@@ -168,7 +168,7 @@ def construct_parser():
     
     argparser.add_argument('-u', '--url',
         type=str,
-        nargs='*',
+        nargs='+',
         help='Enter a URL directly.')
     
     argparser.add_argument('-o', '--output',
