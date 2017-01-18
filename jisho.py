@@ -3,136 +3,22 @@
 import requests
 import sys
 import re
-import html.parser
 import argparse
 import romkan
 import os
-
-
-
-def myprint(level, *args):
-    if False:
-        print('  ' * level, *args)
+from bs4 import BeautifulSoup
+import bs4.element
 
 
 
 def convert(mylist):
     if len(mylist) > 1:
-        return '"{}"'.format('\n'.join(mylist))
+        newlined_mylist = '\n'.join(mylist)
+        return f'"{newlined_mylist}"'
     elif len(mylist) == 1:
         return mylist[0]
     else:
         return ''
-
-
-
-class MyHTMLParser(html.parser.HTMLParser):
-    main_term1 = [('class', 'concept_light-representation')]
-    main_term2 = [('class', 'text')]
-    main_term_filter1 = [main_term1, main_term2]
-    main_term_filter2 = [main_term1, main_term2, []]
-    
-    furigana1 = main_term1
-    furigana2 = [('class', 'furigana')]
-    furigana_filter = [furigana1, furigana2]
-    
-    sentence_filter1 = [('class', 'clearfix')]
-    sentence_filter2 = [('class', 'unlinked')]
-    sentence_filter3 = [
-        [('class', 'sentences zero-padding')],
-        [('class', 'sentence')],
-        [('class', 'japanese japanese_gothic clearfix'), ('lang', 'ja')],
-    ]
-    
-    english_filter = [('class', 'english'), ('lang', 'en')]
-    
-    
-    def __init__(self):
-        super(MyHTMLParser, self).__init__()
-        
-        self.attrs = []
-        self.level = 0
-        self.skip_level = -1
-    
-        self.term = ''
-        self.reading = ''
-        self.furigana = []
-        
-        self.positions = []
-        self.meanings = []
-        
-        self.sentences = []
-        self.englishes = []
-    
-    
-    def handle_starttag(self, tag, attrs):
-        myprint(self.level, "Start tag : {}".format(tag))
-        self.level += 1
-        self.attrs.append(attrs)
-        
-        for attr in attrs:
-            myprint(self.level, "attr :", attr)
-        
-        if attrs == [('class', 'sentences zero-padding')]:
-            self.sentences.append('')
-        
-        # If this is a blank span tag in the furigana section,
-        # add a blank to the kanli list
-        if len(self.attrs) >= 3:
-            if self.attrs[-3:] == [self.furigana1, self.furigana2, []]:
-                self.furigana.append(None)
-    
-    
-    def handle_endtag(self, tag):
-        if self.level < self.skip_level:
-            self.skip_level = -1
-        
-        self.level -= 1
-        self.attrs.pop()
-        
-        myprint(self.level, "End tag : {}".format(tag))
-    
-    
-    def handle_data(self, data):
-        myprint(self.level, "Data : {}".format(data))
-        
-        if self.skip_level != -1:
-            return
-        
-        data = data.strip()
-        
-        if len(self.attrs) >= 1:
-            # Position / part of speech
-            if self.attrs[-1] == [('class', 'meaning-tags')]:
-                if data == 'Other forms' or data == 'Wikipedia definition':
-                    self.skip_level = self.level
-                else:
-                    self.positions.append(data)
-            
-            # Meaning / English definition
-            elif self.attrs[-1] == [('class', 'meaning-meaning')]:
-                self.meanings.append(data)
-            
-            # English translation of sentence
-            elif self.attrs[-1] == self.english_filter:
-                self.englishes.append(data)
-        
-        if len(self.attrs) >= 3:
-            myprint(self.level, self.attrs[-3:])
-            # Build up the example sentence
-            if (self.sentence_filter1 in self.attrs[-3:] and \
-                self.sentence_filter2 in self.attrs[-3:]) or \
-                self.sentence_filter3 == self.attrs[-3:]:
-                self.sentences[-1] += data
-            
-            # Build up the main term (with kanji)
-            elif self.attrs[-2:] == self.main_term_filter1 or \
-               self.attrs[-3:] == self.main_term_filter2:
-                self.term += data
-            
-            # Add a kana to the list to replace kanji in the reading
-            elif self.attrs[-3:-1] == self.furigana_filter:
-                self.furigana.append(data)
 
 
 
@@ -179,7 +65,7 @@ def construct_parser():
 
 
 
-def handle_term(args, word=None, url=None, filename=None):
+def get_html(word, url, filename):
     if filename:
         with open(filename, 'r') as f:
             text = f.read()
@@ -187,47 +73,159 @@ def handle_term(args, word=None, url=None, filename=None):
         page = requests.get(url)
         text = page.text
     else:
-        page = requests.get('http://jisho.org/word/{}'.format(word))
+        page = requests.get(f'http://jisho.org/word/{word}')
         text = page.text
     
-    parser = MyHTMLParser()
-    parser.feed(text)
+    return text
+
+
+
+def extract_term_and_reading(args, soup):
+    # Extract furigana
+    reading = soup.find(class_='furigana')
+    furigana = []
     
-    # Pad the furigana out so that the lengths match
-    original_furigana = parser.furigana
-    diff = len(parser.term) - len(parser.furigana)
-    furigana = parser.furigana + ([None] * diff)
+    for r in reading:
+        if type(r) is bs4.element.Tag:
+            furigana.append(r.text)
     
-    reading = ''
-    for kanji, kana in zip(parser.term, furigana):
-        if kana is not None:
-            reading += kana
+    # Extract the kanji
+    text = soup.find_all(class_='text')[-1]
+    kanji = []
+    
+    i = 0
+    for t in text:
+        if type(t) is bs4.element.NavigableString:
+            t = t.strip()
+            for char in t:
+                i += 1
+                kanji.append(char)
         else:
-            reading += kanji
+            kanji.append(t.text.strip())
+            furigana[i] = t.text.strip()
+            i += 1
     
-    print('term      : {}'.format(parser.term))
-    print('furigana  : {}'.format(original_furigana))
-    print('reading   : {}'.format(reading))
-    print('positions : {}'.format(parser.positions))
-    print('meanings  : {}'.format(parser.meanings))
-    print('sentences : {}'.format(parser.sentences))
-    print('englishes : {}'.format(parser.englishes))
-    print()
-    
-    position, meaning, sentences, englishes = map(
-        convert, [
-            parser.positions, parser.meanings,
-            parser.sentences, parser.englishes,
-        ]
-    )
+    reading = ''.join(furigana)
     
     # If kana mode is on, use kana only for the term
     if args.kana:
         term = reading
     elif args.katakana:
         term = romkan.to_katakana(romkan.to_roma(reading))
+        reading = term
     else:
-        term = parser.term
+        term = ''.join(kanji)
+    
+    return term, reading
+
+
+
+def get_child(element, number=0):
+    return list(element.children)[number]
+
+
+
+def handle_sentence(top):
+    sentence = english = ''
+    
+    for element in top:
+        # If the element is a string, just include it
+        if type(element) is bs4.element.NavigableString:
+            sentence += element.strip()
+        
+        # If it's the english translation, add it
+        elif 'english' in element.attrs['class']:
+            english += element.text.strip()
+        
+        # Otherwise, assume it's a japanese sentence
+        else:
+            for child in element.children:
+                # Disregard any furigana
+                if 'unlinked' in child.attrs['class']:
+                    sentence += child.text.strip()
+    
+    return sentence, english
+
+
+
+def handle_meaning(sub):
+    definition = sentence = english = None
+    
+    for child in sub.children:
+        # Definition
+        if 'meaning-definition' in child.attrs['class']:
+            definition = list(child.children)[1].text
+            definition = get_child(child, 1).text
+        
+        # Sentence
+        elif 'sentences' in child.attrs['class']:
+            child = get_child(get_child(child))
+            sentence, english = handle_sentence(child)
+    
+    return definition, sentence, english
+
+
+
+def extract_meanings(soup):
+    ret = []
+    
+    wrapper = soup.find(class_='meanings-wrapper')
+    
+    positions = []
+    meanings = []
+    sentences = []
+    englishes = []
+    skip = False
+    for sub in wrapper:
+        if skip:
+            skip = False
+            continue
+        
+        if 'meaning-tags' in sub.attrs['class']:
+            if sub.text in ['Other forms', 'Wikipedia definition', 'Notes']:
+                skip = True
+                continue
+            else:
+                positions.append(sub.text)
+        else:
+            # meaning, sentence = handle_meaning(sub)
+            meaning, sentence, english = handle_meaning(sub)
+            meanings.append(meaning)
+            
+            if sentence is not None:
+                sentences.append(sentence)
+            
+            if english is not None:
+                englishes.append(english)
+    
+    return positions, meanings, sentences, englishes
+
+
+
+def handle_term(args, word=None, url=None, filename=None):
+    # Get the HTML
+    text = get_html(word, url, filename)
+    
+    # Parse the HTML
+    soup = BeautifulSoup(text, 'html.parser')
+    
+    # Extract any kanji and furigana
+    term, reading = extract_term_and_reading(args, soup)
+    
+    # Get position, definitions, and sentences (English and Japanese)
+    positions, meanings, sentences, englishes = extract_meanings(soup)
+    
+    print(f'term      : {term}')
+    print(f'reading   : {reading}')
+    print(f'positions : {positions}')
+    print(f'meanings  : {meanings}')
+    print(f'sentences : {sentences}')
+    print(f'englishes : {englishes}')
+    
+    position, meaning, sentences, englishes = map(
+        convert,
+        [positions, meanings, sentences, englishes],
+    )
     
     if len(term) > 0:
         # If no output file is given, default to 'out.csv'
@@ -235,7 +233,7 @@ def handle_term(args, word=None, url=None, filename=None):
             args.output = 'out.csv'
         # If an output DIRECTORY is given, write to 'out.csv' in that directory
         elif os.path.isdir(args.output):
-                args.output = os.path.join(args.output, 'out.csv')
+            args.output = os.path.join(args.output, 'out.csv')
         
         # Blanks are for the fields we don't care about
         with open(args.output, 'a') as f:
@@ -253,6 +251,8 @@ def handle_term(args, word=None, url=None, filename=None):
                 englishes,  # Sentence-English
             ]))
             f.write('\n')
+    
+    print()
 
 
 
