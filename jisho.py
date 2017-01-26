@@ -87,7 +87,13 @@ def extract_term_and_reading(args, soup):
     
     for r in reading:
         if type(r) is bs4.element.Tag:
-            furigana.append(r.text)
+            # For the exceptions that use a ruby tag (e.g., '矢鱈')
+            if r.name == 'ruby':
+                for child in r.children:
+                    if child.name == 'rt':
+                        furigana.append(child.text)
+            else:
+                furigana.append(r.text)
     
     # Extract the kanji
     text = soup.find_all(class_='text')[-1]
