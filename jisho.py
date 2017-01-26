@@ -115,7 +115,7 @@ def extract_term_and_reading(args, soup):
     
     # If kana mode is on, use kana only for the term
     if args.kana:
-        term = reading
+        term = reading = romkan.to_hiragana(romkan.to_roma(reading))
     elif args.katakana:
         term = romkan.to_katakana(romkan.to_roma(reading))
         reading = term
