@@ -2,7 +2,6 @@
 
 import requests
 import sys
-import re
 import argparse
 import romkan
 import os
@@ -160,7 +159,6 @@ def handle_meaning(sub):
     for child in sub.children:
         # Definition
         if 'meaning-definition' in child.attrs['class']:
-            definition = list(child.children)[1].text
             definition = get_child(child, 1).text
         
         # Sentence
@@ -182,6 +180,7 @@ def extract_meanings(soup):
     sentences = []
     englishes = []
     skip = False
+    
     for sub in wrapper:
         if skip:
             skip = False
