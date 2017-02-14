@@ -34,7 +34,7 @@ def construct_parser():
     argparser.add_argument('-d', '--debug',
         action='store_true',
         default=False,
-        help='NOT IMPLEMENTED -- Enable debug mode.')
+        help='Debug mode (don\'t write to file)')
     
     argparser.add_argument('-k', '--kana',
         action='store_true',
@@ -232,7 +232,7 @@ def handle_term(args, word=None, url=None, filename=None):
         [positions, meanings, sentences, englishes],
     )
     
-    if len(term) > 0:
+    if len(term) > 0 and not args.debug:
         # If no output file is given, default to 'out.csv'
         if args.output is None:
             args.output = 'out.csv'
