@@ -10,6 +10,15 @@ import bs4.element
 
 
 
+ignore_definitions = [
+    'Other forms',
+    'Wikipedia definition',
+    'Notes',
+    'Place',
+]
+
+
+
 def convert(mylist):
     if len(mylist) > 1:
         newlined_mylist = '\n'.join(mylist)
@@ -187,7 +196,7 @@ def extract_meanings(soup):
             continue
         
         if 'meaning-tags' in sub.attrs['class']:
-            if sub.text in ['Other forms', 'Wikipedia definition', 'Notes']:
+            if sub.text in ignore_definitions:
                 skip = True
                 continue
             else:
