@@ -7,6 +7,7 @@ import romkan
 import os
 from bs4 import BeautifulSoup
 import bs4.element
+import readline
 
 
 
@@ -68,6 +69,11 @@ def construct_parser():
     argparser.add_argument('-o', '--output',
         type=str,
         help='CSV file to write to.')
+    
+    argparser.add_argument('-i', '--interactive',
+        action='store_true',
+        default=False,
+        help='Interactive mode.')
     
     return argparser
 
@@ -274,13 +280,31 @@ if __name__ == '__main__':
     argparser = construct_parser()
     args = argparser.parse_args(sys.argv[1:])
     
-    if args.file:
-        for filename in args.file:
-            handle_term(args, filename=filename)
-    
-    if args.url:
-        for url in args.url:
-            handle_term(args, url=url)
-    
-    for word in args.words:
-        handle_term(args, word=word)
+    if args.interactive:
+        while True:
+            try:
+                s = input('>>> ')
+                if s == '-k':
+                    args.kana = not args.kana
+                elif s == '-kk':
+                    args.katakana = not args.katakana
+                else:
+                    handle_term(args, word=s)
+            
+            except TypeError as e:
+                print('Nothing doing')
+                
+            except (KeyboardInterrupt, EOFError) as e:
+                print()
+                exit(0)
+    else:
+        if args.file:
+            for filename in args.file:
+                handle_term(args, filename=filename)
+        
+        if args.url:
+            for url in args.url:
+                handle_term(args, url=url)
+        
+        for word in args.words:
+            handle_term(args, word=word)
