@@ -79,6 +79,19 @@ def construct_parser():
 
 
 
+def print_error(e, word, url, filename):
+    if filename:
+        source = filename
+    elif url:
+        source = url
+    else:
+        source = word
+    
+    print(f'Error processing: {source}')
+    print()
+
+
+
 def get_html(word, url, filename):
     if filename:
         with open(filename, 'r') as f:
@@ -230,7 +243,11 @@ def handle_term(args, word=None, url=None, filename=None):
     soup = BeautifulSoup(text, 'html.parser')
     
     # Extract any kanji and furigana
-    term, reading = extract_term_and_reading(args, soup)
+    try:
+        term, reading = extract_term_and_reading(args, soup)
+    except TypeError as e:
+        print_error(e, word, url, filename)
+        return
     
     # Get position, definitions, and sentences (English and Japanese)
     positions, meanings, sentences, englishes = extract_meanings(soup)
