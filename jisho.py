@@ -102,7 +102,7 @@ def get_html(word, url, filename):
         page = requests.get(url)
         text = page.text
     else:
-        page = requests.get(f'http://jisho.org/word/{word}')
+        page = requests.get(f'https://jisho.org/word/{word}')
         text = page.text
 
     return text
