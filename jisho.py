@@ -9,6 +9,10 @@ ignore_definitions = [
 ]
 
 
+def ensure_https(url):
+    return re.sub(r'^http:', 'https:', url)
+
+
 def convert(mylist):
     if len(mylist) > 1:
         newlined_mylist = '\n'.join(mylist)
@@ -61,13 +65,6 @@ def construct_parser():
     )
 
     argparser.add_argument(
-        '-u', '--url',
-        type=str,
-        nargs='+',
-        help='Enter a URL directly.'
-    )
-
-    argparser.add_argument(
         '-o', '--output',
         type=str,
         help='CSV file to write to.')
@@ -82,11 +79,9 @@ def construct_parser():
     return argparser
 
 
-def print_error(e, word, url, filename):
+def print_error(e, word, filename):
     if filename:
         source = filename
-    elif url:
-        source = url
     else:
         source = word
 
@@ -94,12 +89,13 @@ def print_error(e, word, url, filename):
     print()
 
 
-def get_html(word, url, filename):
+def get_html(word, filename):
     if filename:
         with open(filename, 'r') as f:
             text = f.read()
-    elif url:
-        page = requests.get(url)
+    # If the word is actually a URL
+    elif re.match(r'https?://jisho\.org/word/.+', word):
+        page = requests.get(ensure_https(word))
         text = page.text
     else:
         page = requests.get(f'https://jisho.org/word/{word}')
@@ -229,9 +225,9 @@ def extract_meanings(soup):
     return positions, meanings, sentences, englishes
 
 
-def handle_term(args, word=None, url=None, filename=None):
+def handle_term(args, word=None, filename=None):
     # Get the HTML
-    text = get_html(word, url, filename)
+    text = get_html(word, filename)
 
     # Parse the HTML
     soup = bs4.BeautifulSoup(text, 'html.parser')
@@ -240,7 +236,7 @@ def handle_term(args, word=None, url=None, filename=None):
     try:
         term, reading = extract_term_and_reading(args, soup)
     except TypeError as e:
-        print_error(e, word, url, filename)
+        print_error(e, word, filename)
         return
 
     # Get position, definitions, and sentences (English and Japanese)
@@ -292,14 +288,14 @@ if __name__ == '__main__':
     args = argparser.parse_args(sys.argv[1:])
 
     # Exit if there's nothing to do
-    if len(args.words) == 0 and args.url is None and args.file is None and \
-        args.interactive is False:
+    if len(args.words) == 0 and args.file is None and args.interactive is False:
         exit(0)
 
     import requests
     import romkan
     import os
     import bs4
+    import re
 
     if args.interactive:
         import readline
@@ -323,10 +319,6 @@ if __name__ == '__main__':
         if args.file:
             for filename in args.file:
                 handle_term(args, filename=filename)
-
-        if args.url:
-            for url in args.url:
-                handle_term(args, url=url)
 
         for word in args.words:
             handle_term(args, word=word)
