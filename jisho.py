@@ -79,7 +79,7 @@ def construct_parser():
     return argparser
 
 
-def print_error(e, word, filename):
+def print_error(word, filename=None):
     if filename:
         source = filename
     else:
@@ -93,12 +93,30 @@ def get_html(word, filename):
     if filename:
         with open(filename, 'r') as f:
             text = f.read()
+
     # If the word is actually a URL
     elif re.match(r'https?://jisho\.org/word/.+', word):
         page = requests.get(ensure_https(word))
         text = page.text
+
     else:
         page = requests.get(f'https://jisho.org/word/{word}')
+
+        # If the word doesn't exist, search and use the first result
+        if page.status_code == 404:
+            print(f'No exact match for "{word}". Trying search…')
+            page = requests.get(f'https://jisho.org/search/{word}')
+            page.raise_for_status()
+            text = page.text
+            soup = bs4.BeautifulSoup(text, 'html.parser')
+            detail = soup.find(class_='light-details_link')
+            if detail is None:
+                return
+            detail_href = detail.attrs['href']
+            page = requests.get('https:' + detail_href)
+        else:
+            page.raise_for_status()
+
         text = page.text
 
     return text
@@ -228,6 +246,9 @@ def extract_meanings(soup):
 def handle_term(args, word=None, filename=None):
     # Get the HTML
     text = get_html(word, filename)
+    if text is None:
+        print_error(word, filename)
+        return
 
     # Parse the HTML
     soup = bs4.BeautifulSoup(text, 'html.parser')
@@ -235,8 +256,8 @@ def handle_term(args, word=None, filename=None):
     # Extract any kanji and furigana
     try:
         term, reading = extract_term_and_reading(args, soup)
-    except TypeError as e:
-        print_error(e, word, filename)
+    except TypeError:
+        print_error(word, filename)
         return
 
     # Get position, definitions, and sentences (English and Japanese)
