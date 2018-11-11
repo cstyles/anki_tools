@@ -15,8 +15,7 @@ def ensure_https(url):
 
 def convert(mylist):
     if len(mylist) > 1:
-        newlined_mylist = '\n'.join(mylist)
-        return f'"{newlined_mylist}"'
+        return '\n'.join(mylist)
     elif len(mylist) == 1:
         return mylist[0]
     else:
@@ -298,7 +297,8 @@ def handle_term(args, word=None, filename=None):
 
         # Blanks are for the fields we don't care about
         with open(args.output, 'a') as f:
-            f.write('\t'.join([
+            csvf = csv.writer(f, delimiter='\t', quotechar='"')
+            csvf.writerow([
                 term,       # Vocabulary-Kanji
                 '',         # Vocabulary-Furigana
                 reading,    # Vocabular-Kana
@@ -310,8 +310,7 @@ def handle_term(args, word=None, filename=None):
                 '',         # Reading
                 '',         # Sentence-Kana
                 englishes,  # Sentence-English
-            ]))
-            f.write('\n')
+            ])
 
     print()
 
@@ -330,6 +329,7 @@ if __name__ == '__main__':
     import os
     import bs4
     import re
+    import csv
 
     if args.interactive:
         import readline
