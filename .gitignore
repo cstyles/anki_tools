@@ -2,3 +2,4 @@ out.csv
 venv
 .DS_Store
 saved
+*.swp
