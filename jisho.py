@@ -301,7 +301,7 @@ def handle_term(args, word=None, filename=None):
             csvf.writerow([
                 term,       # Vocabulary-Kanji
                 '',         # Vocabulary-Furigana
-                reading,    # Vocabular-Kana
+                reading,    # Vocabulary-Kana
                 meaning,    # Vocabulary-English
                 '',         # Vocabulary-Audio
                 position,   # Vocabulary-Pos
