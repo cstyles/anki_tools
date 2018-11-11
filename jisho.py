@@ -89,14 +89,33 @@ def print_error(word, filename=None):
     print()
 
 
+def get_first_search_result(url):
+    page = requests.get(ensure_https(url))
+    page.raise_for_status()
+    text = page.text
+    soup = bs4.BeautifulSoup(text, 'html.parser')
+    detail = soup.find(class_='light-details_link')
+    if detail is None:
+        return
+    detail_href = detail.attrs['href']
+    return requests.get('https:' + detail_href)
+
+
 def get_html(word, filename):
     if filename:
         with open(filename, 'r') as f:
             text = f.read()
 
-    # If the word is actually a URL
+    # If the word is a direct URL to a word
     elif re.match(r'https?://jisho\.org/word/.+', word):
         page = requests.get(ensure_https(word))
+        text = page.text
+
+    # If the word is a direct URL to a search
+    elif re.match(r'https?://jisho\.org/search/.+', word):
+        page = get_first_search_result(word)
+        if page is None:
+            return
         text = page.text
 
     else:
@@ -105,15 +124,9 @@ def get_html(word, filename):
         # If the word doesn't exist, search and use the first result
         if page.status_code == 404:
             print(f'No exact match for "{word}". Trying search…')
-            page = requests.get(f'https://jisho.org/search/{word}')
-            page.raise_for_status()
-            text = page.text
-            soup = bs4.BeautifulSoup(text, 'html.parser')
-            detail = soup.find(class_='light-details_link')
-            if detail is None:
+            page = get_first_search_result(f'https://jisho.org/search/{word}')
+            if page is None:
                 return
-            detail_href = detail.attrs['href']
-            page = requests.get('https:' + detail_href)
         else:
             page.raise_for_status()
 
