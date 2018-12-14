@@ -338,8 +338,10 @@ if __name__ == '__main__':
                 s = input('>>> ')
                 if s == '-k':
                     args.kana = not args.kana
+                    args.katakana = False
                 elif s == '-kk':
                     args.katakana = not args.katakana
+                    args.kana = False
                 else:
                     handle_term(args, word=s)
 
